@@ -1,55 +1,112 @@
-# OneHistory AI-Ready 项目模板
+<!-- template:head -->
+# ModuleReady
 
-这是从 `0000-000-Template` 派生的 AI 优先项目模板。它保留 OneHistory 的多专业工程素材，
-同时用稳定入口、结构化清单、现行文档和可执行验证规则，让人和 AI 都能快速判断项目目标、
-真值、修改边界与完成标准。
+> 宿主模块起步模板：派生、跑一条脚本，就是一个可构建、可测试、可热装的 HistoryVulcan 模块仓
+<!-- /template:head -->
 
-![OneHistory Logo](./Logo.png)
+<!-- template:usage -->
+## 从模板建立模块
 
-## 模板原则
+本模板从 `0000-001-AIReady` 派生，内含一个能直接跑通的示范模块 `HistoryExemplum`（域 `exemplum`，
+一页 Aurora 页面、三条示范指令、离线测试含宿主装载冒烟）。新模块不必再去别的模块仓里复制。
 
-- 根目录只提供必要入口，不要求 AI 扫描整个仓库。
-- `project.manifest.json` 声明活动目录、文档、命令、归档和生成物。
-- 根目录的可见文件夹只使用 `a-*`、`b-*`、`z-*` 三种级别。
-- `b-Office/current/` 只保存必要的项目现行文档；`b-Office/package/` 保存精简复用入口。
-- `b-Office/history/` 默认不进入 AI 上下文。
-- 任何构建、测试或验收命令都必须在 manifest 中明确声明；不适用时使用 `null`。
+1. 建仓：`janus.proj.create name=2026-0xx-History<神名> base=0000-002-ModuleReady`。
+2. 在新仓主树实例化（机械改名、改身份，跑完脚本删掉自己）：
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File .\b-Code\New-ModuleFromTemplate.ps1 `
+       -Name History<神名> -Description '<一句话描述>' [-Domain <域>] [-PageTitle <页面标题>]
+   ```
+
+   构建、测试通过后把这次实例化提交成一个脚手架提交，让之后的开发工作区只装业务改动。
+3. 把脚本打印的条目登记进宿主 `b-Code-Eng/pipeline/module-publish.manifest.json`。
+   `vulcan.dev.start` 不查登记表，没登记也开得出工作区，到 submit 才被拒收。
+4. `vulcan.dev.start` 开工作区，在里面把 `hello.*` 示范换成真实业务、填完 `{{...}}`，
+   跑严格合同检查，再 `submit`（候选构建并热装）→ 审过 → `finish`。
+
+模板自身的验证（模板模式，不带 `-Instantiation`）：
+
+```powershell
+dotnet run --project .\b-Code\HistoryExemplum.Tests\HistoryExemplum.Tests.csproj -c Release -p:NuGetAudit=false
+powershell -NoProfile -ExecutionPolicy Bypass -File .\b-Code\Test-ProjectContract.ps1
+```
+
+<!-- /template:usage -->
+## 定位
+
+{{这个模块做什么、为谁做；两三句话}}
+
+- {{明确不做的事，以及它属于哪个模块}}
+
+## 概况
+
+| 项 | 值 |
+| --- | --- |
+| 角色 | 宿主模块（`kind=module`） |
+| 指令域 | `exemplum` |
+| 界面 | Aurora 描述式页面（场景 `HistoryExemplum`） |
+| MCP 投影 | `readonly` |
+| 版本与宿主下限 | [`HistoryExemplumVersion.props`](./b-Code/HistoryExemplum/HistoryExemplumVersion.props) |
+
+## 能力
+
+| 按钮 | 指令 | 用途 |
+| --- | --- | --- |
+| 打招呼 | `exemplum.hello.ping` | 示范：改状态的无参指令，刷新页面表格 |
+| — | `exemplum.hello.echo text=…` | 示范：带参数的只读指令 |
+| — | `exemplum.hello.list` | 示范：只读列表，投影到 MCP |
+
+参数、返回与失败语义见 [模块 API](./b-Office/package/模块API.md)。
 
 ## 入口
 
 | 入口 | 用途 |
 | --- | --- |
-| [`AGENTS.md`](./AGENTS.md) | AI 读取顺序、真值规则、工作边界与完成要求 |
-| [`project.manifest.json`](./project.manifest.json) | 可机器读取的项目身份、路径、命令和上下文排除项 |
-| [`b-Office/package/复用说明.md`](./b-Office/package/复用说明.md) | 文档包边界与建议读取顺序 |
-| [`b-Office/文档中心.md`](./b-Office/文档中心.md#目录规范) | 文档索引及根目录 a/b/z 规范 |
-| [`b-Office/current/项目概览.md`](./b-Office/current/项目概览.md) | 项目目标、范围、状态和交付物 |
-| [`b-Office/current/技术合同.md`](./b-Office/current/技术合同.md) | 现行需求和系统架构 |
-| [`b-Office/current/有效决策.md`](./b-Office/current/有效决策.md) | 当前仍然有效的关键决策 |
-| [`b-Office/current/验证合同.md`](./b-Office/current/验证合同.md) | 分层验证方法与证据要求 |
+| [`AGENTS.md`](./AGENTS.md) | AI 工作合同：读取顺序、真值判定、边界、模块开发要点 |
+| [`project.manifest.json`](./project.manifest.json) | 项目身份、活动目录、文档与命令 |
+| [文档中心](./b-Office/文档中心.md) | 文档索引与读取顺序 |
+| [项目概览](./b-Office/current/项目概览.md) | 目标、范围与状态 |
+| [技术合同](./b-Office/current/技术合同.md) | 现行需求与架构 |
+| [有效决策](./b-Office/current/有效决策.md) | 仍然有效的关键决策 |
+| [验证合同](./b-Office/current/验证合同.md) | 验证层级、命令与证据 |
+| [模块 API](./b-Office/package/模块API.md) | 跨模块消费合同 |
 
-## 从模板建立项目
+## 目录
 
-1. 以本分支建立新的项目分支和工作树，不直接修改本模板。
-2. 修改 `project.manifest.json` 中的项目身份、类型、活动目录和命令，并将
-   `template.isTemplate` 改为 `false`。
-3. 按项目需要创建 `a-*` 子项目、`b-*` 项目组件或 `z-*` 跨项目复用元目录，使用能表达
-   职责的名称，并登记到 manifest。
-4. 替换 `b-Office/current/` 中全部 `{{...}}` 占位内容，删除不适用的小节。
-5. 更新根 README，使其描述真实项目，而不是模板。
-6. 执行严格验收：
+| 路径 | 职责 |
+| --- | --- |
+| `b-Code/HistoryExemplum/` | 模块源码、manifest 与 `eng/` 构建脚本 |
+| `b-Code/HistoryExemplum.Tests/` | 离线自动验证（含宿主装载冒烟） |
+| `b-Code/` | 项目合同检查 |
+| `b-Office/` | 项目文档：`current/` 现行合同、`package/` 消费合同、`history/` 只读归档 |
+| `z-Publish/` | 正式快照与 `history/` 归档，由宿主管线写入 |
+
+## 构建与验证
 
 ```powershell
+dotnet build .\b-Code\HistoryExemplum\HistoryExemplum.csproj -c Release -p:NuGetAudit=false
+dotnet run --project .\b-Code\HistoryExemplum.Tests\HistoryExemplum.Tests.csproj -c Release -p:NuGetAudit=false
 powershell -NoProfile -ExecutionPolicy Bypass -File .\b-Code\Test-ProjectContract.ps1 -Instantiation
 ```
 
-严格验收通过只代表项目入口和文档合同完整；产品本身仍须执行 manifest 中声明的构建、
-测试和验收命令。
+离线测试最后一组用宿主真正的 `ModuleHost` 装一遍打好的包：版本漂移、manifest 写错在宿主那边
+都是静默跳过整个模块，这组用例在出包前拦住它们。
 
-## 模板验证
+## 开发与发布
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\b-Code\Test-ProjectContract.ps1
-```
+改动只进 `vulcan.dev.start` 创建的工作区，经宿主 Console CLI 走
+`vulcan.dev.start` → `vulcan.dev.submit`（候选构建并热装送审）→ `vulcan.dev.finish`（批准后并回并写入 `z-Publish`）。
+本仓不自行发布；`eng/Build-HistoryExemplumPackage.ps1` 只用于本地候选构建。
 
-作者：Pinavia
+## 要点
+
+- 页面 owner 由指令域推出（`exemplum` → `HistoryExemplum`），合同检查与离线测试都守着这条。
+- 版本只改 `HistoryExemplumVersion.props`，再同步两份 manifest；三处不一致构建前就失败。
+- {{本模块特有的要点}}
+
+## 保留内容
+- 本模板项目介绍：此为最初的准备的项目模板
+    每个分支项目都会由他去继承
+- 作者：Pinavia - 2025
+
+![logo](./Logo.png)

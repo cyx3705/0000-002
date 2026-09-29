@@ -1,0 +1,261 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using HistoryExemplum;
+using HistoryVulcan.Core.Commands;
+using HistoryVulcan.Core.Logging;
+using HistoryVulcan.Services.Modules;
+
+Console.OutputEncoding = Encoding.UTF8;
+
+// 全部离线。最后一组用宿主真正的 ModuleHost 装一遍打好的包——
+// 版本漂移、manifest 写错、身份类缺失在宿主那边都是「静默跳过整个模块」，只有这样才能在出包前拦住。
+var tests = new (string Name, Func<Task> Run)[]
+{
+    ("command registration", Sync(TestCommandRegistration)),
+    ("page owner follows domain", Sync(TestPageOwner)),
+    ("buttons, actions and commands line up", Sync(TestPageWiring)),
+    ("versions agree", Sync(TestVersionsAgree)),
+    ("host loads the package", TestHostLoadsPackage),
+};
+
+var failed = 0;
+foreach (var test in tests)
+{
+    try
+    {
+        await test.Run();
+        Console.WriteLine($"PASS {test.Name}");
+    }
+    catch (Exception ex)
+    {
+        failed++;
+        Console.Error.WriteLine($"FAIL {test.Name}: {ex.Message}");
+    }
+}
+
+return failed == 0 ? 0 : 1;
+
+static Func<Task> Sync(Action test) => () =>
+{
+    test();
+    return Task.CompletedTask;
+};
+
+static CommandRegistry Registry()
+{
+    var registry = new CommandRegistry();
+    HistoryExemplumModule.Register(registry, new ExemplumState(null));
+    return registry;
+}
+
+static void TestCommandRegistration()
+{
+    var registry = Registry();
+    var domain = ExemplumIdentity.Domain;
+    string[] expected =
+    [
+        domain + ".hello.ping",
+        domain + ".hello.echo",
+        domain + ".hello.list",
+        domain + ".ui.describe",
+        domain + ".ui.actions",
+        domain + ".ui.data",
+    ];
+    foreach (var name in expected)
+    {
+        True(registry.TryGet(name, out var descriptor), $"未注册 {name}");
+        Equal(domain, descriptor!.Domain!);
+        Equal(ExemplumIdentity.Source, registry.GetSource(name)!);
+    }
+
+    Equal(expected.Length, registry.All().Count(d => d.Name.StartsWith(domain + ".", StringComparison.Ordinal)));
+
+    foreach (var method in new[] { "describe", "actions", "data" })
+    {
+        True(registry.TryGet(domain + ".ui." + method, out var ui), $"缺少 {domain}.ui.{method}");
+        True(ui!.Readonly, $"{domain}.ui.{method} 必须只读");
+        True(ui.HiddenReason is not null, $"{domain}.ui.{method} 是界面内部协议，必须 HiddenReason");
+    }
+}
+
+static void TestPageOwner()
+{
+    // Aurora 的判据：owner = "History" + 首字母大写的指令域；对不上整页被静默拒收。
+    var expected = "History" + char.ToUpperInvariant(ExemplumIdentity.Domain[0]) + ExemplumIdentity.Domain[1..];
+    Equal(expected, ExemplumIdentity.PageOwner);
+
+    using var description = JsonDocument.Parse(ExemplumPage.Describe());
+    var root = description.RootElement;
+    Equal(expected, root.GetProperty("owner").GetString()!);
+    Equal(1, root.GetProperty("schemaVersion").GetInt32());
+    foreach (var page in root.GetProperty("pages").EnumerateArray())
+        Equal(expected, page.GetProperty("scene").GetString()!);
+
+    using var actions = JsonDocument.Parse(ExemplumPage.Actions());
+    Equal(expected, actions.RootElement.GetProperty("owner").GetString()!);
+}
+
+static void TestPageWiring()
+{
+    var registry = Registry();
+    using var actions = JsonDocument.Parse(ExemplumPage.Actions());
+    var declared = new HashSet<string>(StringComparer.Ordinal);
+    foreach (var action in actions.RootElement.GetProperty("actions").EnumerateArray())
+    {
+        var id = action.GetProperty("id").GetString()!;
+        var command = action.GetProperty("command").GetString()!;
+        True(declared.Add(id), $"动作 id 重复：{id}");
+        True(registry.TryGet(command.Split(' ')[0], out _), $"动作 {id} 指向未注册的指令 {command}");
+    }
+
+    using var description = JsonDocument.Parse(ExemplumPage.Describe());
+    var nodes = Descendants(description.RootElement).ToList();
+    foreach (var button in nodes.Where(node => node.TryGetProperty("kind", out var kind) && kind.GetString() == "button"))
+    {
+        var action = button.GetProperty("action").GetString()!;
+        True(declared.Contains(action), $"按钮指向未声明的动作 {action}");
+    }
+
+    foreach (var source in nodes.Where(node => node.TryGetProperty("dataSource", out _)))
+    {
+        var command = source.GetProperty("dataSource").GetProperty("command").GetString()!;
+        True(registry.TryGet(command, out _), $"表格取数指令未注册：{command}");
+    }
+}
+
+static void TestVersionsAgree()
+{
+    var manifest = ReadManifest(Path.Combine(AppContext.BaseDirectory, "module.manifest.json"));
+    Equal(ExemplumIdentity.Name, manifest.GetProperty("name").GetString()!);
+    Equal(ExemplumIdentity.Name + ".dll", manifest.GetProperty("artifact").GetString()!);
+    Equal(new ModuleInfo().Version, manifest.GetProperty("version").GetString()!);
+    Equal(ExemplumIdentity.Name, new ModuleInfo().ModuleName);
+    Equal(ExemplumIdentity.Description, manifest.GetProperty("description").GetString()!);
+}
+
+static async Task TestHostLoadsPackage()
+{
+    var root = Path.Combine(Path.GetTempPath(), ExemplumIdentity.Name + ".Tests", Guid.NewGuid().ToString("N"));
+    var package = Path.Combine(root, "modules", ExemplumIdentity.Name);
+    Directory.CreateDirectory(package);
+    try
+    {
+        var manifest = ReadManifest(Path.Combine(AppContext.BaseDirectory, "module.manifest.json"));
+        foreach (var file in new[]
+                 {
+                     "module.manifest.json",
+                     manifest.GetProperty("artifact").GetString()!,
+                     manifest.GetProperty("docs").GetString()!,
+                 })
+        {
+            var from = Path.Combine(AppContext.BaseDirectory, file);
+            True(File.Exists(from), $"构建产物缺少 {file}");
+            File.Copy(from, Path.Combine(package, file));
+        }
+
+        WriteChecksums(package);
+
+        var log = new CapturingLog();
+        var registry = new CommandRegistry();
+        var bus = new CommandBus(registry, log);
+        using var host = new ModuleHost(new RuntimeModuleDiscoverySource(Path.GetDirectoryName(package)!), log)
+        {
+            EnableFileWatching = false,
+        };
+        host.Attach(registry, bus);
+        host.Start();
+
+        var diagnostics = string.Join("；", host.DiscoveryDiagnostics.Select(item => item.Code));
+        True(host.Modules.Count == 1, $"宿主没有装上模块（诊断：{diagnostics}；日志：{log.Warnings()}）");
+        var module = host.Modules[0];
+        Equal(ExemplumIdentity.Name, module.ModuleName);
+        True(module.Attached, "模块装上了但没 attached：" + string.Join("；", module.AttachFailures));
+        Equal(6, module.CommandCount);
+
+        var echo = await bus.ExecuteAsync(ExemplumIdentity.Domain + ".hello.echo text=OneHistory", "test");
+        True(echo.Success, echo.Message);
+        Equal("OneHistory", echo.Message);
+
+        var ping = await bus.ExecuteAsync(ExemplumIdentity.Domain + ".hello.ping", "test");
+        True(ping.Success, ping.Message);
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+            Directory.Delete(root, recursive: true);
+    }
+}
+
+static JsonElement ReadManifest(string path)
+{
+    using var document = JsonDocument.Parse(File.ReadAllText(path));
+    return document.RootElement.Clone();
+}
+
+// 与 eng/Build-*Package.ps1 同一格式：大写十六进制、两个空格、正斜杠路径、无 BOM。
+static void WriteChecksums(string package)
+{
+    var lines = Directory.GetFiles(package, "*", SearchOption.AllDirectories)
+        .Where(path => !Path.GetFileName(path).Equals("SHA256SUMS", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+        .Select(path => $"{Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))}  "
+                        + Path.GetRelativePath(package, path).Replace('\\', '/'));
+    File.WriteAllLines(Path.Combine(package, "SHA256SUMS"), lines, new UTF8Encoding(false));
+}
+
+static IEnumerable<JsonElement> Descendants(JsonElement element)
+{
+    if (element.ValueKind == JsonValueKind.Object)
+    {
+        yield return element;
+        foreach (var property in element.EnumerateObject())
+            foreach (var child in Descendants(property.Value))
+                yield return child;
+    }
+    else if (element.ValueKind == JsonValueKind.Array)
+    {
+        foreach (var item in element.EnumerateArray())
+            foreach (var child in Descendants(item))
+                yield return child;
+    }
+}
+
+static void True(bool condition, string message)
+{
+    if (!condition)
+        throw new InvalidOperationException(message);
+}
+
+static void Equal<T>(T expected, T actual)
+{
+    if (!EqualityComparer<T>.Default.Equals(expected, actual))
+        throw new InvalidOperationException($"期望 {expected}，实际 {actual}");
+}
+
+/// <summary>收下宿主日志：模块没装上时，原因只在这里。</summary>
+internal sealed class CapturingLog : IShellLog
+{
+    private readonly List<ShellLogEntry> _entries = [];
+
+    public event EventHandler<ShellLogEntry>? EntryAdded;
+
+    public void Log(ShellLogLevel level, string category, string message)
+    {
+        var entry = new ShellLogEntry(DateTime.Now, level, category, message);
+        lock (_entries)
+            _entries.Add(entry);
+        EntryAdded?.Invoke(this, entry);
+    }
+
+    public IReadOnlyList<ShellLogEntry> Snapshot()
+    {
+        lock (_entries)
+            return _entries.ToList();
+    }
+
+    public string Warnings()
+        => string.Join("；", Snapshot()
+            .Where(entry => entry.Level >= ShellLogLevel.Warn)
+            .Select(entry => $"{entry.Category}: {entry.Message}"));
+}
