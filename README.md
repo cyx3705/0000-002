@@ -19,8 +19,7 @@
    ```
 
    构建、测试通过后把这次实例化提交成一个脚手架提交，让之后的开发工作区只装业务改动。
-3. 把脚本打印的条目登记进宿主 `b-Code-Eng/pipeline/module-publish.manifest.json`。
-   `vulcan.dev.start` 不查登记表，没登记也开得出工作区，到 submit 才被拒收。
+3. 不用改宿主仓：发布描述已在 `project.manifest.json` 的 `publish` 节（宿主 5.8.0 起模块自带）。
 4. `vulcan.dev.start` 开工作区，在里面把 `hello.*` 示范换成真实业务、填完 `{{...}}`，
    跑严格合同检查，再 `submit`（候选构建并热装）→ 审过 → `finish`。
 

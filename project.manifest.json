@@ -79,5 +79,32 @@
     "**/node_modules/**",
     "**/.vs/**",
     "artifacts/**"
-  ]
+  ],
+  "publish": {
+    "versionProps": "b-Code\\HistoryExemplum\\HistoryExemplumVersion.props",
+    "versionProperty": "HistoryExemplumVersion",
+    "sourceManifest": "b-Code\\HistoryExemplum\\module.manifest.json",
+    "package": {
+      "project": "b-Code\\HistoryExemplum\\HistoryExemplum.csproj",
+      "files": [
+        "HistoryExemplum.dll",
+        "HistoryExemplum.xml",
+        "module.manifest.json"
+      ]
+    },
+    "validation": [
+      {
+        "tool": "dotnet.exe",
+        "arguments": [
+          "run",
+          "--project",
+          "b-Code\\HistoryExemplum.Tests\\HistoryExemplum.Tests.csproj",
+          "-c",
+          "Release",
+          "-p:NuGetAudit=false"
+        ],
+        "description": "Run HistoryExemplum offline tests"
+      }
+    ]
+  }
 }

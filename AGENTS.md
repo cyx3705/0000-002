@@ -46,8 +46,8 @@
 
 - **改动只进 dev 工作区。** 代码改动先 `vulcan.dev.start`，在 F 盘工作区里改，`submit` 送审热装，
   用户批准后 `finish`。直接改主树最后没法 finish。
-- **先登记再 submit。** 模块要在宿主 `b-Code-Eng/pipeline/module-publish.manifest.json` 里有条目；
-  `start` 不查登记表，`submit` 才拒收。✔（严格检查会提醒）
+- **发布描述在本仓，不改宿主。** 宿主 5.8.0 起没有模块登记表，打包与验证步骤写在本仓 `project.manifest.json`
+  的 `publish` 节（实例化时随改名生成）；缺了 `submit` 拒收。加验证步骤就在工作区里改这一节。✔
 - **版本三处一致**：`<模块>Version.props`、`module.manifest.json`、`project.manifest.json`。
   不一致时宿主静默跳过整个模块。✔
 - **`ModuleInfo.ModuleName` 显式写死模块名**：缺省值是程序集名，同时也是指令域。✔

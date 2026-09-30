@@ -225,12 +225,23 @@ if ($Instantiation) {
         }
     }
 
-    # 宿主发布表不登记，vulcan.dev.start 照样开得出工作区，submit 却会拒收——提前提醒。
-    $registry = [IO.Path]::GetFullPath((Join-Path $repoRoot '..\2026-023-HistoryVulcan\b-Code-Eng\pipeline\module-publish.manifest.json'))
-    if (Test-Path -LiteralPath $registry) {
-        $registered = @((Read-Text $registry | ConvertFrom-Json).modules | Where-Object { $_.name -eq $moduleName })
-        if ($registered.Count -eq 0) {
-            $warnings.Add("宿主发布表还没登记 ${moduleName}：$registry；登记前 vulcan.dev.submit 会拒收")
+    # 宿主 5.8.0 起不登记模块：发布描述在本仓 project.manifest.json 的 publish 节，缺了 submit 会拒收。
+    $publish = (Read-Text (Join-Path $repoRoot 'project.manifest.json') | ConvertFrom-Json).publish
+    if ($null -eq $publish) {
+        $errors.Add('project.manifest.json 缺少 publish 节（宿主开发管线靠它打包与验证）')
+    }
+    else {
+        foreach ($field in @('versionProps', 'versionProperty', 'sourceManifest')) {
+            if ([string]::IsNullOrWhiteSpace($publish.$field)) { $errors.Add("publish.$field 不能为空") }
+            elseif ($field -ne 'versionProperty' -and -not (Test-Path -LiteralPath (Join-Path $repoRoot $publish.$field))) {
+                $errors.Add("publish.$field 指向的文件不存在: $($publish.$field)")
+            }
+        }
+        if ($null -eq $publish.package -or [string]::IsNullOrWhiteSpace($publish.package.project)) {
+            $errors.Add('publish.package.project 不能为空')
+        }
+        elseif (-not (Test-Path -LiteralPath (Join-Path $repoRoot $publish.package.project))) {
+            $errors.Add("publish.package.project 指向的文件不存在: $($publish.package.project)")
         }
     }
 }

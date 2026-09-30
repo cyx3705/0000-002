@@ -148,49 +148,9 @@ Edit-Text (Join-Path $repoRoot 'AGENTS.md') {
 
 Remove-Item -LiteralPath $PSCommandPath -Force
 
-$props = "b-Code\\$Name\\${Name}Version.props"
-$registryEntry = @"
-    {
-      "name": "$Name",
-      "kind": "module",
-      "projectDirectory": "$Id-$Name",
-      "versionProps": "$props",
-      "versionProperty": "${Name}Version",
-      "sourceManifest": "b-Code\\$Name\\module.manifest.json",
-      "snapshotManifest": "module.manifest.json",
-      "identityProperty": "name",
-      "candidateDirectory": "z-Publish",
-      "formalDirectory": "z-Publish",
-      "package": {
-        "project": "b-Code\\$Name\\$Name.csproj",
-        "files": [
-          "$Name.dll",
-          "$Name.xml",
-          "module.manifest.json"
-        ]
-      },
-      "packageDocuments": "b-Office\\package",
-      "validation": [
-        {
-          "tool": "dotnet.exe",
-          "arguments": [
-            "run",
-            "--project",
-            "b-Code\\$Name.Tests\\$Name.Tests.csproj",
-            "-c",
-            "Release",
-            "-p:NuGetAudit=false"
-          ],
-          "description": "Run $Name offline tests"
-        }
-      ]
-    }
-"@
-
 Write-Host "已实例化为 $Name（编号 $Id，指令域 $Domain，页面 owner $pageOwner，页面标题 $PageTitle）。"
 Write-Host ''
 Write-Host '接下来：'
-Write-Host "  1. 把下面这条登记进 2026-023-HistoryVulcan\b-Code-Eng\pipeline\module-publish.manifest.json 的 modules[]（不登记 submit 会拒收）："
-Write-Host $registryEntry
+Write-Host '  1. 发布描述已在 project.manifest.json 的 publish 节（随改名生成），宿主仓不用改；加验证步骤就改这一节。'
 Write-Host '  2. 填完 README 与 b-Office 里的 {{...}}，把 hello.* 示范指令换成真实业务。'
 Write-Host '  3. 构建、测试、严格合同检查（命令见 project.manifest.json），再走 vulcan.dev.submit / finish。'
