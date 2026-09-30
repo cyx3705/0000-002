@@ -15,14 +15,18 @@
     <ProjectReference Include="..\HistoryExemplum\HistoryExemplum.csproj" />
     <!-- 模块工程把宿主运行库设成 Private=false（部署时由宿主提供）。
          测试是独立可执行文件，没有宿主给它，所以这里必须自己带一份。
-         Services 是装载冒烟用的：拿宿主真正的 ModuleHost 装一遍打好的包。 -->
+         只引用契约程序集 Core：装载冒烟走宿主命令行的 probe 开关，不引用宿主实现程序集（宿主 5.9.0 统一契约）。 -->
     <Reference Include="HistoryVulcan.Core">
       <HintPath>$(HistoryVulcanHostRoot)\HistoryVulcan.Core.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="HistoryVulcan.Services">
-      <HintPath>$(HistoryVulcanHostRoot)\HistoryVulcan.Services.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 装载冒烟要找到同一份宿主的 HistoryVulcan.Cli.exe；管线在工作区里会传 HistoryVulcanPackageRoot。 -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>HistoryVulcanHostRoot</_Parameter1>
+      <_Parameter2>$([System.IO.Path]::GetFullPath('$(HistoryVulcanHostRoot)'))</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 </Project>

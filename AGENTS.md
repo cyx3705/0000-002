@@ -46,6 +46,10 @@
 
 - **改动只进 dev 工作区。** 代码改动先 `vulcan.dev.start`，在 F 盘工作区里改，`submit` 送审热装，
   用户批准后 `finish`。直接改主树最后没法 finish。
+- **只用统一契约（宿主 5.9.0）。** 宿主给的只有一条总线和一个上下文：执行指令用 `Bus.ExecuteAsync`（存成 `ICommandBus`），
+  数据目录用 `context.Environment.DataDirectory`，运行方式用 `context.Environment.RunMode`，宿主位置问 `vulcan.host.info`，
+  目录与模块列表执行 `vulcan.command.*` / `vulcan.module.list` 并按 JSON 字段读 Data，变化用 `context.Subscribe`，
+  装载冒烟用 `HistoryVulcan.Cli.exe --probe`。不引用 `HistoryVulcan.Services`、不拼 `%AppData%`、不碰总线内部成员。✔
 - **发布描述在本仓，不改宿主。** 宿主 5.8.0 起没有模块登记表，打包与验证步骤写在本仓 `project.manifest.json`
   的 `publish` 节（实例化时随改名生成）；缺了 `submit` 拒收。加验证步骤就在工作区里改这一节。✔
 - **版本三处一致**：`<模块>Version.props`、`module.manifest.json`、`project.manifest.json`。

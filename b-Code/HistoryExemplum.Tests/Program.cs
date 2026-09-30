@@ -3,13 +3,14 @@ using System.Text;
 using System.Text.Json;
 using HistoryExemplum;
 using HistoryVulcan.Core.Commands;
-using HistoryVulcan.Core.Logging;
-using HistoryVulcan.Services.Modules;
+using System.Diagnostics;
+using System.Reflection;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-// 全部离线。最后一组用宿主真正的 ModuleHost 装一遍打好的包——
+// 全部离线。最后一组把打好的包交给已发布宿主的命令行 `--probe` 装一遍（宿主 5.9.0 起的统一契约）——
 // 版本漂移、manifest 写错、身份类缺失在宿主那边都是「静默跳过整个模块」，只有这样才能在出包前拦住。
+// 测试只看宿主的装载结果与指令结果，不引用宿主的实现程序集，宿主内部怎么改都不影响这里。
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("command registration", Sync(TestCommandRegistration)),
@@ -137,7 +138,7 @@ static void TestVersionsAgree()
 static async Task TestHostLoadsPackage()
 {
     var root = Path.Combine(Path.GetTempPath(), ExemplumIdentity.Name + ".Tests", Guid.NewGuid().ToString("N"));
-    var package = Path.Combine(root, "modules", ExemplumIdentity.Name);
+    var package = Path.Combine(root, ExemplumIdentity.Name);
     Directory.CreateDirectory(package);
     try
     {
@@ -156,35 +157,55 @@ static async Task TestHostLoadsPackage()
 
         WriteChecksums(package);
 
-        var log = new CapturingLog();
-        var registry = new CommandRegistry();
-        var bus = new CommandBus(registry, log);
-        using var host = new ModuleHost(new RuntimeModuleDiscoverySource(Path.GetDirectoryName(package)!), log)
-        {
-            EnableFileWatching = false,
-        };
-        host.Attach(registry, bus);
-        host.Start();
+        var echo = await Probe(package, ExemplumIdentity.Domain + ".hello.echo text=OneHistory");
+        var module = echo.GetProperty("data").GetProperty("module");
+        True(module.GetProperty("attached").GetBoolean(),
+            "宿主没有接上模块：" + string.Join("；", module.GetProperty("attachFailures").EnumerateArray().Select(item => item.GetString()))
+            + "；诊断：" + string.Join("；", echo.GetProperty("diagnostics").EnumerateArray().Select(item => item.GetString())));
+        Equal(ExemplumIdentity.Name, module.GetProperty("name").GetString());
+        Equal(6, module.GetProperty("commandCount").GetInt32());
+        var result = echo.GetProperty("data").GetProperty("result");
+        True(result.GetProperty("success").GetBoolean(), result.GetProperty("message").GetString() ?? "");
+        Equal("OneHistory", result.GetProperty("message").GetString());
 
-        var diagnostics = string.Join("；", host.DiscoveryDiagnostics.Select(item => item.Code));
-        True(host.Modules.Count == 1, $"宿主没有装上模块（诊断：{diagnostics}；日志：{log.Warnings()}）");
-        var module = host.Modules[0];
-        Equal(ExemplumIdentity.Name, module.ModuleName);
-        True(module.Attached, "模块装上了但没 attached：" + string.Join("；", module.AttachFailures));
-        Equal(6, module.CommandCount);
-
-        var echo = await bus.ExecuteAsync(ExemplumIdentity.Domain + ".hello.echo text=OneHistory", "test");
-        True(echo.Success, echo.Message);
-        Equal("OneHistory", echo.Message);
-
-        var ping = await bus.ExecuteAsync(ExemplumIdentity.Domain + ".hello.ping", "test");
-        True(ping.Success, ping.Message);
+        var ping = await Probe(package, ExemplumIdentity.Domain + ".hello.ping");
+        True(ping.GetProperty("success").GetBoolean(), ping.GetRawText());
     }
     finally
     {
         if (Directory.Exists(root))
             Directory.Delete(root, recursive: true);
     }
+}
+
+// 调已发布宿主的 `HistoryVulcan.Cli.exe --probe`：宿主根目录在构建时写进本程序集（见 csproj 的 HistoryVulcanHostRoot）。
+static async Task<JsonElement> Probe(string package, string command)
+{
+    var hostRoot = Assembly.GetExecutingAssembly()
+        .GetCustomAttributes<AssemblyMetadataAttribute>()
+        .FirstOrDefault(item => item.Key == "HistoryVulcanHostRoot")?.Value;
+    if (string.IsNullOrEmpty(hostRoot))
+        throw new InvalidOperationException("构建时没有写入 HistoryVulcanHostRoot。");
+    var cli = Path.Combine(hostRoot, "HistoryVulcan.Cli.exe");
+    True(File.Exists(cli), $"找不到宿主命令行：{cli}（宿主 5.9.0 起提供 --probe）");
+
+    var start = new ProcessStartInfo(cli)
+    {
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        StandardOutputEncoding = Encoding.UTF8,
+    };
+    foreach (var argument in new[] { "--probe", package, "--format", "json", "--cli" }.Concat(command.Split(' ')))
+        start.ArgumentList.Add(argument);
+
+    using var process = Process.Start(start)!;
+    var output = await process.StandardOutput.ReadToEndAsync();
+    var error = await process.StandardError.ReadToEndAsync();
+    await process.WaitForExitAsync();
+    True(output.TrimStart().StartsWith('{'), $"--probe 没有输出 JSON（退出码 {process.ExitCode}）：{output}{error}");
+    using var document = JsonDocument.Parse(output);
+    return document.RootElement.Clone();
 }
 
 static JsonElement ReadManifest(string path)
@@ -231,31 +252,4 @@ static void Equal<T>(T expected, T actual)
 {
     if (!EqualityComparer<T>.Default.Equals(expected, actual))
         throw new InvalidOperationException($"期望 {expected}，实际 {actual}");
-}
-
-/// <summary>收下宿主日志：模块没装上时，原因只在这里。</summary>
-internal sealed class CapturingLog : IShellLog
-{
-    private readonly List<ShellLogEntry> _entries = [];
-
-    public event EventHandler<ShellLogEntry>? EntryAdded;
-
-    public void Log(ShellLogLevel level, string category, string message)
-    {
-        var entry = new ShellLogEntry(DateTime.Now, level, category, message);
-        lock (_entries)
-            _entries.Add(entry);
-        EntryAdded?.Invoke(this, entry);
-    }
-
-    public IReadOnlyList<ShellLogEntry> Snapshot()
-    {
-        lock (_entries)
-            return _entries.ToList();
-    }
-
-    public string Warnings()
-        => string.Join("；", Snapshot()
-            .Where(entry => entry.Level >= ShellLogLevel.Warn)
-            .Select(entry => $"{entry.Category}: {entry.Message}"));
 }
