@@ -159,6 +159,9 @@ foreach ($source in $sourceFiles) {
         $errors.Add("模块内不得定义 [ComImport] 类型（可卸载装载上下文不支持）；Interop 请装进 AssemblyLoadContext.Default: $($source.FullName)")
     }
     # 宿主统一契约（5.9.0 起，6.0.0 收口）：数据目录、运行方式由上下文给，总线只用「执行 / 安静执行 / 确认」，装载冒烟走 --probe。
+    if ($content -match 'Assembly\(\)\.Location|\.Assembly\.Location') {
+        $errors.Add("不得用 Assembly.Location 找随包文件（宿主从内存流装载，它是空的）；包目录用 context.Environment.PackageDirectory: $($source.FullName)")
+    }
     if ($content -match 'SpecialFolder\.ApplicationData') {
         $errors.Add("不得自己拼 %AppData% 路径；数据目录用 context.Environment.DataDirectory: $($source.FullName)")
     }
