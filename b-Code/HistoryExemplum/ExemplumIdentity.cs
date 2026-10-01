@@ -15,9 +15,6 @@ internal static class ExemplumIdentity
     /// </summary>
     public const string PageOwner = "HistoryExemplum";
 
-    /// <summary>注册来源。</summary>
-    public const string Source = "module:HistoryExemplum";
-
     /// <summary>用户看到的页面标题。</summary>
     public const string PageTitle = "Exemplum";
 

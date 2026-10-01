@@ -24,7 +24,7 @@ public sealed class HistoryExemplumModule : IModuleContextAware
         context.RegisterCommands(registry => Register(registry, state));
     }
 
-    internal static void Register(CommandRegistry registry, ExemplumState state)
+    internal static void Register(ICommandRegistrar registry, ExemplumState state)
     {
         registry.Register(new CommandDescriptor
         {
@@ -39,7 +39,7 @@ public sealed class HistoryExemplumModule : IModuleContextAware
                 context.Progress?.Report("正在打招呼…");
                 return CommandResult.Ok(await state.PingAsync().ConfigureAwait(false));
             },
-        }, ExemplumIdentity.Source);
+        });
 
         registry.Register(new CommandDescriptor
         {
@@ -60,7 +60,7 @@ public sealed class HistoryExemplumModule : IModuleContextAware
                 },
             ],
             Handler = CommandDescriptor.Sync(context => CommandResult.Ok(context.RequireString("text"))),
-        }, ExemplumIdentity.Source);
+        });
 
         registry.Register(new CommandDescriptor
         {
@@ -71,10 +71,10 @@ public sealed class HistoryExemplumModule : IModuleContextAware
             Example = ExemplumIdentity.Domain + ".hello.list",
             Readonly = true,
             Handler = CommandDescriptor.Sync(_ => CommandResult.Ok($"共 {state.Count} 次招呼", state.Rows())),
-        }, ExemplumIdentity.Source);
+        });
 
-        registry.Register(Internal("describe", "返回页面描述", _ => Json(ExemplumPage.Describe())), ExemplumIdentity.Source);
-        registry.Register(Internal("actions", "返回页面动作声明", _ => Json(ExemplumPage.Actions())), ExemplumIdentity.Source);
+        registry.Register(Internal("describe", "返回页面描述", _ => Json(ExemplumPage.Describe())));
+        registry.Register(Internal("actions", "返回页面动作声明", _ => Json(ExemplumPage.Actions())));
         registry.Register(new CommandDescriptor
         {
             Name = ExemplumIdentity.Domain + ".ui.data",
@@ -88,7 +88,7 @@ public sealed class HistoryExemplumModule : IModuleContextAware
                 context.GetString("view")?.Trim().ToLowerInvariant() is null or ExemplumPage.HistoryView
                     ? CommandResult.Ok("招呼记录", state.Rows())
                     : CommandResult.Fail($"未知 view；支持 {ExemplumPage.HistoryView}")),
-        }, ExemplumIdentity.Source);
+        });
     }
 
     private static CommandResult Json(string json) => CommandResult.Ok(json, json);

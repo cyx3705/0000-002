@@ -6,7 +6,7 @@ namespace HistoryExemplum;
 /// <summary>
 /// 模块的运行状态，页面表格从这里取行。示范「指令改状态 → 通知 Aurora 刷新表格」这条回路。
 /// </summary>
-internal sealed class ExemplumState(CommandBus? bus)
+internal sealed class ExemplumState(ICommandBus? bus)
 {
     private readonly object _gate = new();
     private readonly List<DateTime> _pings = [];
@@ -59,7 +59,8 @@ internal sealed class ExemplumState(CommandBus? bus)
         {
             await bus.ExecuteAsync(
                 $"aurora.ui.refreshdata node={ExemplumPage.HistoryTableId}",
-                ExemplumIdentity.Source).ConfigureAwait(false);
+                // 来源由宿主盖章（module:HistoryExemplum），模块不自填。
+                "").ConfigureAwait(false);
         }
         catch (Exception)
         {

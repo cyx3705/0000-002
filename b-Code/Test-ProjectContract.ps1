@@ -158,12 +158,12 @@ foreach ($source in $sourceFiles) {
     if ($content -match '\[ComImport') {
         $errors.Add("模块内不得定义 [ComImport] 类型（可卸载装载上下文不支持）；Interop 请装进 AssemblyLoadContext.Default: $($source.FullName)")
     }
-    # 宿主 5.9.0 统一契约：数据目录、运行方式由上下文给，总线只用「执行 + 确认」，装载冒烟走 --probe。
+    # 宿主统一契约（5.9.0 起，6.0.0 收口）：数据目录、运行方式由上下文给，总线只用「执行 / 安静执行 / 确认」，装载冒烟走 --probe。
     if ($content -match 'SpecialFolder\.ApplicationData') {
         $errors.Add("不得自己拼 %AppData% 路径；数据目录用 context.Environment.DataDirectory: $($source.FullName)")
     }
-    if ($content -match '\bBus\.(Registry|Validate|Executed|Confirmation|InvokeAsync|RemoteExecutor|ShouldUseRemoteCommand)\b') {
-        $errors.Add("不得使用宿主总线的内部成员；只用 ExecuteAsync / RequestConfirmation，目录走 vulcan.command.* 指令: $($source.FullName)")
+    if ($content -match '\bBus\.(Registry|Validate|Executed|Confirmation|RemoteExecutor|ShouldUseRemoteCommand)\b') {
+        $errors.Add("不得使用宿主总线的内部成员；只用 ExecuteAsync / InvokeAsync / RequestConfirmation，目录走 vulcan.command.* 指令: $($source.FullName)")
     }
     if ($content -match 'new\s+ModuleHost\s*\(|HistoryVulcan\.Services\.|Environment\.GetCommandLineArgs') {
         $errors.Add("不得引用宿主实现（ModuleHost / HistoryVulcan.Services）或读进程参数判断运行方式；装载冒烟用 HistoryVulcan.Cli.exe --probe，运行方式用 context.Environment.RunMode: $($source.FullName)")

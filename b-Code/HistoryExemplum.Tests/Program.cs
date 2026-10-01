@@ -43,9 +43,9 @@ static Func<Task> Sync(Action test) => () =>
     return Task.CompletedTask;
 };
 
-static CommandRegistry Registry()
+static Registrar Registry()
 {
-    var registry = new CommandRegistry();
+    var registry = new Registrar();
     HistoryExemplumModule.Register(registry, new ExemplumState(null));
     return registry;
 }
@@ -67,10 +67,9 @@ static void TestCommandRegistration()
     {
         True(registry.TryGet(name, out var descriptor), $"未注册 {name}");
         Equal(domain, descriptor!.Domain!);
-        Equal(ExemplumIdentity.Source, registry.GetSource(name)!);
     }
 
-    Equal(expected.Length, registry.All().Count(d => d.Name.StartsWith(domain + ".", StringComparison.Ordinal)));
+    Equal(expected.Length, registry.All.Count(d => d.Name.StartsWith(domain + ".", StringComparison.Ordinal)));
 
     foreach (var method in new[] { "describe", "actions", "data" })
     {
@@ -252,4 +251,23 @@ static void Equal<T>(T expected, T actual)
 {
     if (!EqualityComparer<T>.Default.Equals(expected, actual))
         throw new InvalidOperationException($"期望 {expected}，实际 {actual}");
+}
+
+/// <summary>
+/// 模块登记口的测试替身：只记下登记了哪些指令。宿主 6.0.0 起注册表是宿主内部类，
+/// 登记口 ICommandRegistrar 就是模块能看到的全部；来源由宿主盖章，这里不再核对。
+/// </summary>
+sealed class Registrar : ICommandRegistrar
+{
+    private readonly Dictionary<string, CommandDescriptor> _commands = new(StringComparer.OrdinalIgnoreCase);
+
+    public IReadOnlyCollection<CommandDescriptor> All => _commands.Values;
+
+    public void Register(CommandDescriptor descriptor)
+    {
+        if (!_commands.TryAdd(descriptor.Name, descriptor))
+            throw new InvalidOperationException($"重复登记 {descriptor.Name}");
+    }
+
+    public bool TryGet(string name, out CommandDescriptor? descriptor) => _commands.TryGetValue(name, out descriptor);
 }
