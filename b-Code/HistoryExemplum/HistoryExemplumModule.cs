@@ -54,7 +54,7 @@ public sealed class HistoryExemplumModule : IModuleContextAware
                 new ParameterSpec
                 {
                     Name = "text",
-                    Description = "要返回的文本",
+                    Description = "要原样返回的文本，任意字符串，例如 OneHistory",
                     Type = ParamType.String,
                     Required = true,
                 },
