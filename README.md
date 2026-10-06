@@ -55,19 +55,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\b-Code\Test-ProjectContrac
 | — | `exemplum.hello.echo text=…` | 示范：带参数的只读指令 |
 | — | `exemplum.hello.list` | 示范：只读列表，投影到 MCP |
 
-指令说明就是注册时的自描述（`diana.docs.read domain=exemplum`，宿主 6.1.0 起没有消费文档）；自描述装不下的回执与 Data 形状写进 [技术合同](./b-Office/current/技术合同.md)「对外约定」。
+指令说明就是注册时的自描述（`diana.docs.read domain=exemplum`，宿主 6.1.0 起没有消费文档）；自描述装不下的取舍写进 [现行约定](./b-Office/current/现行约定.md)。
 
 ## 入口
 
 | 入口 | 用途 |
 | --- | --- |
-| [`AGENTS.md`](./AGENTS.md) | AI 工作合同：读取顺序、真值判定、边界、模块开发要点 |
+| [`AGENTS.md`](./AGENTS.md) | AI 工作合同：读取顺序、真值判定、边界 |
 | [`project.manifest.json`](./project.manifest.json) | 项目身份、活动目录、文档与命令 |
-| [文档中心](./b-Office/文档中心.md) | 文档索引与读取顺序 |
-| [项目概览](./b-Office/current/项目概览.md) | 目标、范围与状态 |
-| [技术合同](./b-Office/current/技术合同.md) | 现行需求与架构 |
-| [有效决策](./b-Office/current/有效决策.md) | 仍然有效的关键决策 |
-| [验证合同](./b-Office/current/验证合同.md) | 验证层级、命令与证据 |
+| [现行约定](./b-Office/current/现行约定.md) | 唯一的长期文档：模板规则与模块起步约定 |
 
 ## 目录
 
@@ -76,7 +72,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\b-Code\Test-ProjectContrac
 | `b-Code/HistoryExemplum/` | 模块源码、manifest 与 `eng/` 构建脚本 |
 | `b-Code/HistoryExemplum.Tests/` | 离线自动验证（含宿主装载冒烟） |
 | `b-Code/` | 项目合同检查 |
-| `b-Office/` | 项目文档：`current/` 现行合同、`history/` 只读归档 |
+| `b-Office/` | 唯一长期文档 `current/现行约定.md` |
 | `z-Publish/` | 正式快照与 `history/` 归档，由宿主管线写入 |
 
 ## 构建与验证
