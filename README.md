@@ -55,7 +55,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\b-Code\Test-ProjectContrac
 | — | `exemplum.hello.echo text=…` | 示范：带参数的只读指令 |
 | — | `exemplum.hello.list` | 示范：只读列表，投影到 MCP |
 
-指令说明就是注册时的自描述（`diana.docs.read domain=exemplum`，宿主 6.1.0 起没有消费文档）；自描述装不下的取舍写进 [现行约定](./b-Office/current/现行约定.md)。
+指令说明就是注册时的自描述（`diana.docs.read domain=exemplum`，宿主 6.1.0 起没有消费文档）；自描述装不下的取舍写进 [现行约定](./b-Office/现行约定.md)。
 
 ## 入口
 
@@ -63,7 +63,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\b-Code\Test-ProjectContrac
 | --- | --- |
 | [`AGENTS.md`](./AGENTS.md) | AI 工作合同：读取顺序、真值判定、边界 |
 | [`project.manifest.json`](./project.manifest.json) | 项目身份、活动目录、文档与命令 |
-| [现行约定](./b-Office/current/现行约定.md) | 唯一的长期文档：模板规则与模块起步约定 |
+| [现行约定](./b-Office/现行约定.md) | 唯一的长期文档：模板规则与模块起步约定 |
 
 ## 目录
 

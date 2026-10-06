@@ -8,7 +8,7 @@
 `project.manifest.json` 中 `template.isTemplate` 为 `true` 时，本仓库仍是模板 `0000-002-ModuleReady`：
 
 - 示范模块 `HistoryExemplum` 与 `{{...}}` 占位符都是有意保留的；模板自身跑不带 `-Instantiation` 的合同检查。
-- 改模板时保证示范模块仍能构建、离线测试全过；新的踩坑经验写进 `b-Office/current/现行约定.md`，
+- 改模板时保证示范模块仍能构建、离线测试全过；新的踩坑经验写进 `b-Office/现行约定.md`，
   能机械检查的同时加进 `b-Code/Test-ProjectContract.ps1`。
 - 派生仓第一件事是运行 `b-Code/New-ModuleFromTemplate.ps1`（步骤见 README），它会删掉本节。
 
@@ -16,7 +16,7 @@
 ## 启动读取顺序
 
 1. 读取根目录 `project.manifest.json`，确认项目身份、状态、活动目录和可用命令。
-2. 读取根目录 `README.md` 和 `b-Office/current/现行约定.md`（本仓唯一的长期文档）。
+2. 读取根目录 `README.md` 和 `b-Office/现行约定.md`（本仓唯一的长期文档）。
 3. 查任何模块（含本模块）的指令怎么调用：先执行
    `diana.docs.catalog`，再 `diana.docs.read domain=<域>`——说明书就是注册时的自描述（宿主 6.1.0 起没有消费文档）。
 4. 只进入 manifest 声明的活动目录。发现未登记目录时，先确认其级别、所有者和用途。
